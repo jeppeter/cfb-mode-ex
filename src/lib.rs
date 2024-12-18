@@ -50,7 +50,7 @@
 //!
 //! [1]: https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Cipher_feedback_(CFB)
 
-#![no_std]
+//#![no_std]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg"
@@ -59,6 +59,40 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs, rust_2018_idioms)]
 
+
+macro_rules! if_cfg_std {
+    ($($item:item)*) => {
+        $(
+        	#[cfg(accessible(::std))]
+            $item
+        )*
+    }
+}
+macro_rules! if_cfg_not_std {
+    ($($item:item)*) => {
+        $(
+        	#[cfg(not(accessible(::std)))]
+            $item
+        )*
+    }
+}
+
+
+#[cfg(accessible(::std))]
+#[cfg(path = "errors.rs")]
+mod errors;
+
+#[cfg(not(accessible(::std)))]
+#[cfg(path = "no_std_errors.rs")]
+mod errors;
+
+
+#[cfg_attr(feature = "std",path = "errors.rs")]
+mod errors;
+
+//#[cfg_attr(no_std, path = "no_std_logger.rs")]
+//#[cfg_attr(not(no_std), path = "logger.rs")]
+//mod logger;
 mod decrypt;
 mod encrypt;
 
