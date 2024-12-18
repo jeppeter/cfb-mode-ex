@@ -60,35 +60,17 @@
 #![warn(missing_docs, rust_2018_idioms)]
 
 
-macro_rules! if_cfg_std {
-    ($($item:item)*) => {
-        $(
-        	#[cfg(accessible(::std))]
-            $item
-        )*
-    }
-}
-macro_rules! if_cfg_not_std {
-    ($($item:item)*) => {
-        $(
-        	#[cfg(not(accessible(::std)))]
-            $item
-        )*
-    }
-}
 
 
-#[cfg(accessible(::std))]
+//#[cfg(path = "no_std_errors.rs")]
 #[cfg(path = "errors.rs")]
 mod errors;
 
-#[cfg(not(accessible(::std)))]
-#[cfg(path = "no_std_errors.rs")]
-mod errors;
+//#[cfg(path = "no_std_logger.rs")]
+#[cfg(path = "logger.rs")]
+mod logger;
 
 
-#[cfg_attr(feature = "std",path = "errors.rs")]
-mod errors;
 
 //#[cfg_attr(no_std, path = "no_std_logger.rs")]
 //#[cfg_attr(not(no_std), path = "logger.rs")]
