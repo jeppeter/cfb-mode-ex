@@ -1,3 +1,4 @@
+/// to make cfb1
 #[derive(Clone)]
 pub struct CfbBitsBufEncryptor<C,const BITSIZE:u8=8>
 where
@@ -12,8 +13,69 @@ impl<C,const BITSIZE:u8> CfbBitsBufEncryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher,
 {
+
+    fn _encrypt_bitsize(&mut self,inbytes :&[u8],outbytes :&mut[u8],ivec :&mut [u8],nbits :usize) {
+        let mut ovec :[u8;16*2+1] = [0;16*2+1];
+        let num :usize = ((nbits + 7) >> 3) as usize;
+        let mut n:usize;
+        ovec[0..16].copy_from_slice(&ivec[0..16]);
+        self.cipher.encrypt_block_mut(ivec.into());
+        n = 0;
+        while n<num {
+            ovec[16+n] = inbytes[n] ^ ivec[n];
+            outbytes[n] = ovec[16+n];
+            n += 1;
+        }
+        let rem = nbits % 8;
+        let leftnum = (nbits >> 3) as usize;
+        if rem == 0 {
+            ivec[0..16].copy_from_slice(&ovec[leftnum..leftnum+16]);
+        } else {
+            n = 0;
+            while n < 16 {
+                ivec[n] = ((ovec[n + leftnum] << rem) | (ovec[n + leftnum + 1] >> (8 - rem))) as u8;
+                n += 1;
+            }
+        }
+        return;
+    }
+
+    fn _encrypt_bits_shift(&mut  self, data :&mut [u8],ivec :&mut [u8],nbits :usize) {
+        let mut c:[u8;1] = [0;1];
+        let mut d:[u8;1] = [0;1];
+        let mut n :usize;
+        let mask :u8;
+        let topbits :u8;
+        topbits = ((1 << nbits) - 1) as u8;
+        mask = (topbits << (8 - nbits)) as u8;
+
+        n = 0;
+        while n < nbits {
+            if (data[n >> 3] & (topbits << ( 7 - n%8))) != 0 {
+                c[0] = mask;
+            } else {
+                c[0] = 0;
+            }
+            self._encrypt_bitsize(&c,&mut d,ivec,nbits);
+            data[n >> 3] = data[n >> 3] & (!(1 << (7 - n % 8 ))) | (( d[0] & mask ) >> (n % 8));
+            n += nbits;
+        }
+        return;
+    }
+
     /// Encrypt a buffer in multiple parts.
+    #[allow(unreachable_code)]
     pub fn encrypt(&mut self, mut data: &mut [u8]) {
+
+        if (8 % BITSIZE) != 0 {
+            panic!("8 % {} != 0",BITSIZE);
+        }
+        let mut iv = self.iv.clone();
+
+        self._encrypt_bits_shift(&mut data,&mut iv,BITSIZE as usize);
+        self.iv = iv.clone();
+        return;
+
         let bs = C::BlockSize::USIZE;
         let n = data.len();
 

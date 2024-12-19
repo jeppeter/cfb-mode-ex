@@ -30,7 +30,7 @@ use crate::impls::*;
 use cfb_mode_ex;
 use aes;
 use aes::cipher::KeyIvInit;
-use aes::cipher::AsyncStreamCipher;
+//use aes::cipher::AsyncStreamCipher;
 
 
 #[derive(Clone)]
