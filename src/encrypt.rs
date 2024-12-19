@@ -7,6 +7,9 @@ use cipher::{
     BlockEncryptMut, BlockSizeUser, InnerIvInit, Iv, IvState, ParBlocksSizeUser, Unsigned,
 };
 use core::fmt;
+use crate::*;
+#[allow(unused_imports)]
+use crate::logger::*;
 
 #[cfg(feature = "zeroize")]
 use cipher::zeroize::{Zeroize, ZeroizeOnDrop};
@@ -40,6 +43,8 @@ where
     pub fn encrypt(&mut self, mut data: &mut [u8]) {
         let bs = C::BlockSize::USIZE;
         let n = data.len();
+
+        cfb_ex_log_trace!("C::BlockSize::USIZE {} bs {} self.pos {}",C::BlockSize::USIZE,bs,self.pos);
 
         if n < bs - self.pos {
             xor_set1(data, &mut self.iv[self.pos..self.pos + n]);

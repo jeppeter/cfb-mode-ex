@@ -1,0 +1,15 @@
+[package]
+name = "utest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cfb-mode-ex = {path = "../../", features = ["debugmode"]}
+extargsparse_worker = "^0.2.0"
+extargsparse_codegen = "^0.1.4"
+lazy_static = "^1.4.0"
+regex = "1"
+chrono = "^0.4.0"
+extlog = "0.1.8"
+extutils = {path = "../extutils"}
+aes = "0.8.1"
