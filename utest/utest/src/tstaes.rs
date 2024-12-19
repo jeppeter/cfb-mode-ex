@@ -49,7 +49,7 @@ impl Aes128CfbAlgo {
     }
 }
 
-pub type Aes128CfbEnc = cfb_mode_ex::BufEncryptor<aes::Aes128>;
+pub type Aes128CfbEnc = cfb_mode_ex::CfbBitsBufEncryptor<aes::Aes128,1>;
 pub type Aes128CfbDec = cfb_mode_ex::BufDecryptor<aes::Aes128>;
 
 

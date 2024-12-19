@@ -1,7 +1,5 @@
-
-/// CFB mode buffered encryptor.
 #[derive(Clone)]
-pub struct BufEncryptor<C>
+pub struct CfbBitsBufEncryptor<C,const BITSIZE:u8=8>
 where
     C: BlockEncryptMut + BlockCipher,
 {
@@ -10,7 +8,7 @@ where
     pos: usize,
 }
 
-impl<C> BufEncryptor<C>
+impl<C,const BITSIZE:u8> CfbBitsBufEncryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher,
 {
@@ -61,21 +59,21 @@ where
     }
 }
 
-impl<C> InnerUser for BufEncryptor<C>
+impl<C,const BITSIZE:u8> InnerUser for CfbBitsBufEncryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher,
 {
     type Inner = C;
 }
 
-impl<C> IvSizeUser for BufEncryptor<C>
+impl<C,const BITSIZE:u8> IvSizeUser for CfbBitsBufEncryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher,
 {
     type IvSize = C::BlockSize;
 }
 
-impl<C> InnerIvInit for BufEncryptor<C>
+impl<C,const BITSIZE:u8> InnerIvInit for CfbBitsBufEncryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher,
 {
@@ -87,23 +85,23 @@ where
     }
 }
 
-impl<C> AlgorithmName for BufEncryptor<C>
+impl<C,const BITSIZE:u8> AlgorithmName for CfbBitsBufEncryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher + AlgorithmName,
 {
     fn write_alg_name(f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("cfb::BufEncryptor<")?;
+        f.write_str("cfb::CfbBitsBufEncryptor<")?;
         <C as AlgorithmName>::write_alg_name(f)?;
         f.write_str(">")
     }
 }
 
-impl<C> fmt::Debug for BufEncryptor<C>
+impl<C,const BITSIZE:u8> fmt::Debug for CfbBitsBufEncryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher + AlgorithmName,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("cfb::BufEncryptor<")?;
+        f.write_str("cfb::CfbBitsBufEncryptor<")?;
         <C as AlgorithmName>::write_alg_name(f)?;
         f.write_str("> { ... }")
     }
@@ -111,7 +109,7 @@ where
 
 #[cfg(feature = "zeroize")]
 #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
-impl<C: BlockEncryptMut + BlockCipher> Drop for BufEncryptor<C> {
+impl<C: BlockEncryptMut + BlockCipher,const BITSIZE:u8> Drop for CfbBitsBufEncryptor<C,BITSIZE> {
     fn drop(&mut self) {
         self.iv.zeroize();
     }
@@ -119,6 +117,4 @@ impl<C: BlockEncryptMut + BlockCipher> Drop for BufEncryptor<C> {
 
 #[cfg(feature = "zeroize")]
 #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
-impl<C: BlockEncryptMut + BlockCipher + ZeroizeOnDrop> ZeroizeOnDrop for BufEncryptor<C> {}
-
-
+impl<C: BlockEncryptMut + BlockCipher + ZeroizeOnDrop,const BITSIZE:u8> ZeroizeOnDrop for CfbBitsBufEncryptor<C,BITSIZE> {}

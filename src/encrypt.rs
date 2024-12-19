@@ -14,6 +14,7 @@ use crate::logger::*;
 #[cfg(feature = "zeroize")]
 use cipher::zeroize::{Zeroize, ZeroizeOnDrop};
 
+include!("bitbufenc.rs");
 include!("bufenc.rs");
 
 /// CFB mode encryptor.
