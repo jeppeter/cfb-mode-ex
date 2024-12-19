@@ -27,10 +27,10 @@ macro_rules! cfb_ex_error_class {
 			}
 		}
 
-		impl core::fmt::Display for $type {
-			fn fmt(&self,f :&mut core::fmt::Formatter) -> core::fmt::Result {
+		impl std::fmt::Display for $type {
+			fn fmt(&self,f :&mut std::fmt::Formatter) -> std::fmt::Result {
 				let mut errdisplay : bool =false;
-				match core::env::var("CFB_EX_ERROR_LEVEL") {
+				match std::env::var("CFB_EX_ERROR_LEVEL") {
 					Ok(vs) => {
 						match vs.parse::<i32>() {
 							Ok(v) => {
@@ -53,10 +53,10 @@ macro_rules! cfb_ex_error_class {
 			}
 		}
 
-		impl core::fmt::Debug for $type {
-			fn fmt(&self,f :&mut core::fmt::Formatter) -> core::fmt::Result {
+		impl std::fmt::Debug for $type {
+			fn fmt(&self,f :&mut std::fmt::Formatter) -> std::fmt::Result {
 				let mut errdisplay : bool =false;
-				match core::env::var("CFB_EX_ERROR_LEVEL") {
+				match std::env::var("CFB_EX_ERROR_LEVEL") {
 					Ok(vs) => {
 						match vs.parse::<i32>() {
 							Ok(v) => {
@@ -78,7 +78,7 @@ macro_rules! cfb_ex_error_class {
 			}
 		}
 
-		impl core::error::Error for $type {}
+		impl std::error::Error for $type {}
 	};
 }
 
@@ -100,7 +100,6 @@ macro_rules! cfb_ex_new_error {
 		}
 	};
 }
-
 
 /// to call return Box<dyn Error>
 /// ```

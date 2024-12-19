@@ -1,32 +1,150 @@
 
 
+use std::env;
+use std::io::{Write};
+use std::fs;
+//use std::io::prelude::*;
+use lazy_static::lazy_static;
+use chrono::{Local,Timelike,Datelike};
+use std::sync::RwLock;
 
 
 
-
+fn _cfb_ex_get_environ_var(envname :&str) -> String {
+	match env::var(envname) {
+		Ok(v) => {
+			format!("{}",v)
+		},
+		Err(_e) => {
+			String::from("")
+		}
+	}
+}
 
 #[allow(dead_code)]
+struct LogVar {
+	level :i32,
+	nostderr : bool,
+	wfile : Option<fs::File>,
+	wfilename :String,
+	baklevel :i32,
+	baknostderr :bool,
+}
+
+
+fn cfb_ex_proc_log_init(prefix :&str) -> LogVar {
+	let mut getv :String;
+	let mut retv :i32 = 0;
+	let mut nostderr :bool = false;
+	let mut coptfile :Option<fs::File> = None;
+	let mut key :String;
+	let mut fname :String = "".to_string();
+
+	key = format!("{}_LEVEL", prefix);
+	getv = _cfb_ex_get_environ_var(&key);
+	if getv.len() > 0 {
+		match getv.parse::<i32>() {
+			Ok(v) => {
+				retv = v;
+			},
+			Err(e) => {
+				retv = 0;
+				eprintln!("can not parse [{}] error[{}]", getv,e);
+			}
+		}
+	}
+
+	key = format!("{}_NOSTDERR",prefix);
+	getv = _cfb_ex_get_environ_var(&key);
+	if getv.len() > 0 {
+		nostderr = true;
+	}
+
+
+
+	key = format!("{}_LOGFILE",prefix);
+	getv = _cfb_ex_get_environ_var(&key);
+	if getv.len() > 0 {
+		fname = format!("{}",getv);
+		let fo = fs::File::create(&getv);
+		if fo.is_err() {
+			eprintln!("can not open [{}]", getv);
+		} else {
+			coptfile = Some(fo.unwrap());
+		}
+	}
+
+	return LogVar {
+		level : retv,
+		nostderr : nostderr,
+		wfile : coptfile,
+		wfilename : fname,
+		baklevel : 0,
+		baknostderr : true,
+	};
+}
+
+
+lazy_static! {
+	static ref CFB_EX_LOG_LEVEL : RwLock<LogVar> = {
+	 	RwLock::new(cfb_ex_proc_log_init("CFB_EX"))
+	};
+}
+
+///  to let not debug output the values
+#[allow(dead_code)]
 pub fn set_cfb_ex_logger_disable() {
+	let mut cfb_exref = CFB_EX_LOG_LEVEL.write().unwrap();
+	cfb_exref.baknostderr = cfb_exref.nostderr;
+	cfb_exref.baklevel = cfb_exref.level;
+	cfb_exref.wfile = None;
+	cfb_exref.level = 0;
+	cfb_exref.nostderr = true;
 	return;
 }
 
 #[allow(dead_code)]
 pub fn set_cfb_ex_logger_enable() {
+	let mut cfb_exref = CFB_EX_LOG_LEVEL.write().unwrap();
+	cfb_exref.level = cfb_exref.baklevel;
+	cfb_exref.nostderr = cfb_exref.baknostderr;	
+	if cfb_exref.wfilename.len() > 0 {
+		let fo = fs::File::create(&cfb_exref.wfilename);
+		if fo.is_ok() {
+			cfb_exref.wfile = Some(fo.unwrap());
+		}
+	}
 	return ;
 }
 
 
 #[allow(dead_code)]
-pub (crate)  fn cfb_ex_debug_out(_level :i32, _outs :&str) {
+pub (crate)  fn cfb_ex_debug_out(level :i32, outs :&str) {
+	let cfb_exref = CFB_EX_LOG_LEVEL.write().unwrap();
+	if cfb_exref.level >= level {
+		let c = format!("{}\n",outs);
+		if !cfb_exref.nostderr {
+			let _ = std::io::stderr().write_all(c.as_bytes());
+		}
+
+		if cfb_exref.wfile.is_some() {
+			let mut wf = cfb_exref.wfile.as_ref().unwrap();
+			let _ = wf.write(c.as_bytes());
+		}
+	}
 	return;
 }
 
 #[allow(dead_code)]
 pub (crate) fn cfb_ex_log_get_timestamp() -> String {
-	return format!("time");
+	let now = Local::now();
+	return format!("{}/{}/{} {}:{}:{}",now.year(),now.month(),now.day(),now.hour(),now.minute(),now.second());
 }
 
-/// no output ,just replace for std cfb_ex_log_error
+/// call when CFB_EX_LEVEL >= 0
+/// ```
+/// cfb_ex_log_error!("exampl error value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 macro_rules! cfb_ex_log_error {
@@ -37,7 +155,10 @@ macro_rules! cfb_ex_log_error {
 	}
 }
 
-/// no output ,just replace for std cfb_ex_log_warn
+/// call when CFB_EX_LEVEL >= 10
+/// ```
+/// cfb_ex_log_warn!("exampl error value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 macro_rules! cfb_ex_log_warn {
@@ -48,7 +169,10 @@ macro_rules! cfb_ex_log_warn {
 	}
 }
 
-/// no output ,just replace for std cfb_ex_log_info
+/// call when CFB_EX_LEVEL >= 20
+/// ```
+/// cfb_ex_log_info!("exampl error value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 macro_rules! cfb_ex_log_info {
@@ -58,6 +182,7 @@ macro_rules! cfb_ex_log_info {
 		cfb_ex_debug_out(20,&c);
 	}
 }
+
 
 
 /// check whether expr == true ,if not so call panic
@@ -76,7 +201,12 @@ macro_rules! cfb_ex_assert {
 	}
 }
 
-/// no output no std replace cfb_ex_format_buffer_log
+
+/// format buffer log
+/// ```
+/// let buf :Vec<u8> = vec![3,2,4];
+/// cfb_ex_format_buffer_log!(buf.as_ptr(),buf.len(),"buffer output value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 macro_rules! cfb_ex_format_buffer_log {
@@ -140,7 +270,11 @@ macro_rules! cfb_ex_format_buffer_log {
 	}
 }
 
-/// no output no std replace cfb_ex_debug_buffer_error
+/// call debug buffer when CFB_EX_LEVEL >= 0
+/// ```
+/// let buf :Vec<u8> = vec![3,2,4];
+/// cfb_ex_format_buffer_error!(buf.as_ptr(),buf.len(),"buffer output value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 macro_rules! cfb_ex_debug_buffer_error {
@@ -149,7 +283,11 @@ macro_rules! cfb_ex_debug_buffer_error {
 	}
 }
 
-/// no output no std replace cfb_ex_debug_buffer_warn
+/// call debug buffer when CFB_EX_LEVEL >= 10
+/// ```
+/// let buf :Vec<u8> = vec![3,2,4];
+/// cfb_ex_format_buffer_warn!(buf.as_ptr(),buf.len(),"buffer output value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 macro_rules! cfb_ex_debug_buffer_warn {
@@ -158,7 +296,11 @@ macro_rules! cfb_ex_debug_buffer_warn {
 	}
 }
 
-/// no output no std replace cfb_ex_debug_buffer_info
+/// call debug buffer when CFB_EX_LEVEL >= 20
+/// ```
+/// let buf :Vec<u8> = vec![3,2,4];
+/// cfb_ex_format_buffer_info!(buf.as_ptr(),buf.len(),"buffer output value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 macro_rules! cfb_ex_debug_buffer_info {
@@ -167,7 +309,11 @@ macro_rules! cfb_ex_debug_buffer_info {
 	}
 }
 
-/// no output no std replace cfb_ex_debug_buffer_debug
+/// call debug buffer when CFB_EX_LEVEL >= 30
+/// ```
+/// let buf :Vec<u8> = vec![3,2,4];
+/// cfb_ex_format_buffer_debug!(buf.as_ptr(),buf.len(),"buffer output value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 macro_rules! cfb_ex_debug_buffer_debug {
@@ -176,7 +322,12 @@ macro_rules! cfb_ex_debug_buffer_debug {
 	}
 }
 
-/// no output no std replace cfb_ex_log_trace
+
+
+/// call debug buffer when CFB_EX_LEVEL >= 40
+/// ```
+/// cfb_ex_log_trace!("call value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 #[cfg(feature="debug_mode")]
@@ -188,7 +339,10 @@ macro_rules! cfb_ex_log_trace {
 	}
 }
 
-/// no output no std replace cfb_ex_log_trace
+/// call debug buffer when CFB_EX_LEVEL >= 40
+/// ```
+/// cfb_ex_log_trace!("call value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 #[cfg(not(feature="debug_mode"))]
@@ -196,7 +350,12 @@ macro_rules! cfb_ex_log_trace {
 	($($arg:tt)+) => {}
 }
 
-/// no output no std replace cfb_ex_debug_buffer_trace
+
+/// call debug buffer when CFB_EX_LEVEL >= 40
+/// ```
+/// let buf :Vec<u8> = vec![3,2,4];
+/// cfb_ex_format_buffer_trace!(buf.as_ptr(),buf.len(),"buffer output value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 #[cfg(feature="debug_mode")]
@@ -206,7 +365,11 @@ macro_rules! cfb_ex_debug_buffer_trace {
 	}
 }
 
-/// no output no std replace cfb_ex_debug_buffer_trace
+/// call debug buffer when CFB_EX_LEVEL >= 40
+/// ```
+/// let buf :Vec<u8> = vec![3,2,4];
+/// cfb_ex_format_buffer_trace!(buf.as_ptr(),buf.len(),"buffer output value {}",3);
+/// ```
 #[macro_export]
 #[allow(unused_macros)]
 #[cfg(not(feature="debug_mode"))]

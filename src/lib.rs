@@ -61,20 +61,8 @@
 
 
 
-
-//#[cfg(path = "no_std_errors.rs")]
-#[cfg(path = "errors.rs")]
 mod errors;
-
-//#[cfg(path = "no_std_logger.rs")]
-#[cfg(path = "logger.rs")]
 mod logger;
-
-
-
-//#[cfg_attr(no_std, path = "no_std_logger.rs")]
-//#[cfg_attr(not(no_std), path = "logger.rs")]
-//mod logger;
 mod decrypt;
 mod encrypt;
 
