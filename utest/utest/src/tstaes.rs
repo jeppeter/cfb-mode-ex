@@ -49,14 +49,20 @@ impl Aes128CfbAlgo {
     }
 }
 
-pub type Aes128CfbEnc = cfb_mode_ex::Encryptor<aes::Aes128>;
-pub type Aes128CfbDec = cfb_mode_ex::Decryptor<aes::Aes128>;
+pub type Aes128CfbEnc = cfb_mode_ex::BufEncryptor<aes::Aes128>;
+pub type Aes128CfbDec = cfb_mode_ex::BufDecryptor<aes::Aes128>;
 
 
 impl Asn1EncryptOp for Aes128CfbAlgo {
     fn init_encrypt(&mut self,key :&[u8],iv :&[u8]) -> Result<(),Box<dyn Error>> {
         self.iv = iv.to_vec();
         self.key = key.to_vec();
+        if self.iv.len() >= 16 {
+            self.iv = self.iv[0..16].to_vec();
+        }
+        if self.key.len() >= 16 {
+            self.key = self.key[0..16].to_vec();
+        }
         Ok(())
     }
     fn encrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {

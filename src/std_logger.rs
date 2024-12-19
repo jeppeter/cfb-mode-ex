@@ -347,7 +347,9 @@ macro_rules! cfb_ex_log_trace {
 #[allow(unused_macros)]
 #[cfg(not(feature="debug_mode"))]
 macro_rules! cfb_ex_log_trace {
-	($($arg:tt)+) => {}
+	($($arg:tt)+) => {
+		println!("call in {}:{}", file!(),line!());
+	}
 }
 
 
@@ -374,5 +376,7 @@ macro_rules! cfb_ex_debug_buffer_trace {
 #[allow(unused_macros)]
 #[cfg(not(feature="debug_mode"))]
 macro_rules! cfb_ex_debug_buffer_trace {
-	($buf:expr,$len:expr,$($arg:tt)+) => {}
+	($buf:expr,$len:expr,$($arg:tt)+) => {
+		println!("call in {}:{}", file!(),line!());
+	}
 }

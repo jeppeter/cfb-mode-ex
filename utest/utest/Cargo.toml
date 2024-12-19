@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cfb-mode-ex = {path = "../../", features = ["debugmode"]}
+cfb-mode-ex = {path = "../../", features = ["debug_mode"]}
 extargsparse_worker = "^0.2.0"
 extargsparse_codegen = "^0.1.4"
 lazy_static = "^1.4.0"
