@@ -72,6 +72,7 @@ where
         }
         let mut iv = self.iv.clone();
 
+        cfb_ex_debug_buffer_trace!(iv.as_ptr(),iv.len(),"iv");
         self._encrypt_bits_shift(&mut data,&mut iv,BITSIZE as usize);
         self.iv = iv.clone();
         return;
