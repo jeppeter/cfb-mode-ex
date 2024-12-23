@@ -142,7 +142,9 @@ where
     #[inline]
     fn inner_iv_init(mut cipher: C, iv: &Iv<Self>) -> Self {
         let mut iv = iv.clone();
+        cfb_ex_debug_buffer_trace!(iv.as_ptr(),iv.len(),"iv init");
         cipher.encrypt_block_mut(&mut iv);
+        cfb_ex_debug_buffer_trace!(iv.as_ptr(),iv.len(),"encrypt iv");
         Self { cipher, iv, pos: 0 }
     }
 }
