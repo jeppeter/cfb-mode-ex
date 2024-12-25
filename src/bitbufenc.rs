@@ -18,14 +18,20 @@ where
         let mut ovec :[u8;16*2+1] = [0;16*2+1];
         let num :usize = ((nbits + 7) >> 3) as usize;
         let mut n:usize;
+        cfb_ex_debug_buffer_trace!(ovec.as_ptr(),ovec.len(),"ovec");
         ovec[0..16].copy_from_slice(&ivec[0..16]);
+        cfb_ex_debug_buffer_trace!(ovec.as_ptr(),ovec.len(),"ovec");
         self.cipher.encrypt_block_mut(ivec.into());
+        cfb_ex_debug_buffer_trace!(ivec.as_ptr(),ivec.len(),"ivec");
         n = 0;
         while n<num {
+            cfb_ex_log_trace!("out[{}]=ovec[16+{}] [0x{:x}] => [0x{:x}] (0x{:x} ^ 0x{:x})",n,n,ovec[16+n],inbytes[n] ^ ivec[n],inbytes[n],ivec[n]);
             ovec[16+n] = inbytes[n] ^ ivec[n];
             outbytes[n] = ovec[16+n];
             n += 1;
         }
+        cfb_ex_debug_buffer_trace!(ovec.as_ptr(),16,"ovec");
+        //cfb_ex_debug_buffer_trace!(outbytes.as_ptr(),16,"out");
         let rem = nbits % 8;
         let leftnum = (nbits >> 3) as usize;
         if rem == 0 {
@@ -36,6 +42,8 @@ where
                 ivec[n] = ((ovec[n + leftnum] << rem) | (ovec[n + leftnum + 1] >> (8 - rem))) as u8;
                 n += 1;
             }
+            cfb_ex_debug_buffer_trace!(ivec.as_ptr(),16,"ivec");
+            cfb_ex_debug_buffer_trace!(ovec.as_ptr(),16,"ovec");
         }
         return;
     }
@@ -46,18 +54,31 @@ where
         let mut n :usize;
         let mask :u8;
         let topbits :u8;
+        let totalbits :usize = data.len() * 8;
+        let inbytes :Vec<u8> = data.to_vec().clone();
+        let nbytes :Vec<u8> = vec![0;data.len()];
+        data.copy_from_slice(&nbytes);
+        let mut tmp1 :u8;
+        let mut tmp2 :u8;
         topbits = ((1 << nbits) - 1) as u8;
         mask = (topbits << (8 - nbits)) as u8;
 
         n = 0;
-        while n < nbits {
-            if (data[n >> 3] & (topbits << ( 7 - n%8))) != 0 {
+        while n < totalbits {
+            if (inbytes[n >> 3] & (topbits << ( 7 - n%8))) != 0 {
                 c[0] = mask;
             } else {
                 c[0] = 0;
             }
+            cfb_ex_log_trace!("tmpin 0x{:x}",c[0]);
             self._encrypt_bitsize(&c,&mut d,ivec,nbits);
-            data[n >> 3] = data[n >> 3] & (!(1 << (7 - n % 8 ))) | (( d[0] & mask ) >> (n % 8));
+            cfb_ex_log_trace!("out[{}/8] = 0x{:x} d[0] = 0x{:x}",n,data[n>>3],d[0]);
+            tmp1 = data[n >> 3] & (!(1 << (7 - n % 8 )));
+            tmp2 = ( d[0] & mask ) >> (n % 8);
+            cfb_ex_log_trace!("tmp1 0x{:x} = out[{} / 8] [0x{:x}] & ~(1 << (unsigned int)(7 - {} % 8)))",tmp1,n,data[n >> 3],n);
+            cfb_ex_log_trace!("tmp2 0x{:x} = (d[0] [0x{:x}] & 0x80) >> (n {} % 8)",tmp2,d[0],n);
+            data[n >> 3] =  tmp1 | tmp2 ;
+            cfb_ex_log_trace!("out[{} / 8] = 0x{:x}", n, data[n >> 3]);
             n += nbits;
         }
         return;
