@@ -7,6 +7,9 @@ use cipher::{
     ParBlocksSizeUser, Unsigned,
 };
 use core::fmt;
+#[allow(unused_imports)]
+use crate::logger::*;
+use crate::*;
 
 #[cfg(feature = "zeroize")]
 use cipher::zeroize::{Zeroize, ZeroizeOnDrop};

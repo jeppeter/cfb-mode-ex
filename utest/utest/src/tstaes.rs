@@ -50,8 +50,8 @@ impl Aes128CfbAlgo {
     }
 }
 
-pub type Aes128CfbEnc = cfb_mode_ex::CfbBitsBufEncryptor<aes::Aes128,1>;
-pub type Aes128CfbDec = cfb_mode_ex::CfbBitsBufDecryptor<aes::Aes128,1>;
+pub type Aes128CfbEnc = cfb_mode_ex::CfbBitsBufEncryptor<aes::Aes128,8>;
+pub type Aes128CfbDec = cfb_mode_ex::CfbBitsBufDecryptor<aes::Aes128,8>;
 
 
 impl Asn1EncryptOp for Aes128CfbAlgo {
@@ -80,8 +80,14 @@ impl Asn1EncryptOp for Aes128CfbAlgo {
 
 impl Asn1DecryptOp for Aes128CfbAlgo {
     fn init_decrypt(&mut self,key :&[u8],iv :&[u8]) -> Result<(),Box<dyn Error>> {
-        self.key = key.to_vec();
         self.iv = iv.to_vec();
+        self.key = key.to_vec();
+        if self.iv.len() >= 16 {
+            self.iv = self.iv[0..16].to_vec();
+        }
+        if self.key.len() >= 16 {
+            self.key = self.key[0..16].to_vec();
+        }
         Ok(())
     }
     fn decrypt_update(&mut self, encdata :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {

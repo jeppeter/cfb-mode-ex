@@ -1,4 +1,3 @@
-
 fn _get_mask_bits(inbytes :&[u8],bits :usize, offsetbits :usize) -> Vec<u8> {
     let mut idx :usize=0;
     let mut sbidx :usize;
@@ -50,9 +49,10 @@ fn _mask_new_bits(data :&mut [u8],bits :usize, offsetbits :usize, maskbytes :&[u
 }
 
 
-/// to make cfb1
+
+/// CFB mode buffered decryptor.
 #[derive(Clone)]
-pub struct CfbBitsBufEncryptor<C,const BITSIZE:u8=8>
+pub struct CfbBitsBufDecryptor<C,const BITSIZE:u8=8>
 where
     C: BlockEncryptMut + BlockCipher,
 {
@@ -61,12 +61,12 @@ where
     pos: usize,
 }
 
-impl<C,const BITSIZE:u8> CfbBitsBufEncryptor<C,BITSIZE>
+impl<C,const BITSIZE:u8> CfbBitsBufDecryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher,
 {
 
-    fn _encrypt_bitsize(&mut self,inbytes :&[u8],outbytes :&mut[u8],ivec :&mut [u8],nbits :usize) {
+    fn _decrypt_bitsize(&mut self,inbytes :&[u8],outbytes :&mut[u8],ivec :&mut [u8],nbits :usize) {
         let mut ovec :[u8;16*2+1] = [0;16*2+1];
         let num :usize = ((nbits + 7) >> 3) as usize;
         let mut n:usize;
@@ -77,9 +77,9 @@ where
         cfb_ex_debug_buffer_trace!(ivec.as_ptr(),ivec.len(),"ivec");
         n = 0;
         while n<num {
-            cfb_ex_log_trace!("out[{}]=ovec[16+{}] [0x{:x}] => [0x{:x}] (0x{:x} ^ 0x{:x})",n,n,ovec[16+n],inbytes[n] ^ ivec[n],inbytes[n],ivec[n]);
-            ovec[16+n] = inbytes[n] ^ ivec[n];
-            outbytes[n] = ovec[16+n];
+            cfb_ex_log_trace!("out[{}]= [0x{:x}] => [0x{:}] ( 0x{:x} ^ 0x{:x}) ovec[16+{}] = [0x{:x}]",n,outbytes[n],inbytes[n] ^ ivec[n],inbytes[n],ivec[n],n,inbytes[n]);
+            ovec[16+n] = inbytes[n];
+            outbytes[n] = inbytes[n] ^ ivec[n];
             n += 1;
         }
         cfb_ex_debug_buffer_trace!(ovec.as_ptr(),16,"ovec");
@@ -100,7 +100,7 @@ where
         return;
     }
 
-    fn _encrypt_bits_shift(&mut  self, data :&mut [u8],ivec :&mut [u8],nbits :usize) {
+    fn _decrypt_bits_shift(&mut  self, data :&mut [u8],ivec :&mut [u8],nbits :usize) {
         let mut c :Vec<u8>;
         let mut d  = vec![0;(nbits + 7) >> 3];
         let mut n :usize;
@@ -119,7 +119,7 @@ where
         while n < totalbits {
             c = _get_mask_bits(&inbytes,nbits,n);
             cfb_ex_log_trace!("tmpin 0x{:x}",c[0]);
-            self._encrypt_bitsize(&c,&mut d,ivec,nbits);
+            self._decrypt_bitsize(&c,&mut d,ivec,nbits);
             cfb_ex_log_trace!("out[{}/8] = 0x{:x} d[0] = 0x{:x}",n,data[n>>3],d[0]);
             tmp1 = data[n >> 3] & (!(1 << (7 - n % 8 )));
             tmp2 = ( d[0] & mask ) >> (n % 8);
@@ -133,9 +133,8 @@ where
         return;
     }
 
-    /// Encrypt a buffer in multiple parts.
-    #[allow(unreachable_code)]
-    pub fn encrypt(&mut self, mut data: &mut [u8]) {
+    /// Decrypt a buffer in multiple parts.
+    pub fn decrypt(&mut self, mut data: &mut [u8]) {
 
         if BITSIZE < 1 || BITSIZE > 128 {
             panic!("BITSIZE {} < 1 || > 128",BITSIZE );
@@ -147,7 +146,7 @@ where
         let mut iv = self.iv.clone();
 
         cfb_ex_debug_buffer_trace!(iv.as_ptr(),iv.len(),"iv");
-        self._encrypt_bits_shift(&mut data,&mut iv,BITSIZE as usize);
+        self._decrypt_bits_shift(&mut data,&mut iv,BITSIZE as usize);
         self.iv = iv.clone();
         return;
     }
@@ -167,52 +166,49 @@ where
     }
 }
 
-impl<C,const BITSIZE:u8> InnerUser for CfbBitsBufEncryptor<C,BITSIZE>
+impl<C,const BITSIZE:u8> InnerUser for CfbBitsBufDecryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher,
 {
     type Inner = C;
 }
 
-impl<C,const BITSIZE:u8> IvSizeUser for CfbBitsBufEncryptor<C,BITSIZE>
+impl<C,const BITSIZE:u8> IvSizeUser for CfbBitsBufDecryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher,
 {
     type IvSize = C::BlockSize;
 }
 
-impl<C,const BITSIZE:u8> InnerIvInit for CfbBitsBufEncryptor<C,BITSIZE>
+impl<C,const BITSIZE:u8> InnerIvInit for CfbBitsBufDecryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher,
 {
     #[inline]
     #[allow(unused_mut)]
     fn inner_iv_init(mut cipher: C, iv: &Iv<Self>) -> Self {
-        //let mut iv = iv.clone();
-        //cfb_ex_debug_buffer_trace!(iv.as_ptr(),iv.len(),"iv init");
-        //cipher.encrypt_block_mut(&mut iv);
-        //cfb_ex_debug_buffer_trace!(iv.as_ptr(),iv.len(),"encrypt iv");
-        Self { cipher : cipher, iv:iv.clone(), pos: 0 }
+        let  iv = iv.clone();
+        Self { cipher, iv, pos: 0 }
     }
 }
 
-impl<C,const BITSIZE:u8> AlgorithmName for CfbBitsBufEncryptor<C,BITSIZE>
+impl<C,const BITSIZE:u8> AlgorithmName for CfbBitsBufDecryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher + AlgorithmName,
 {
     fn write_alg_name(f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("cfb::CfbBitsBufEncryptor<")?;
+        f.write_str("cfb::CfbBitsBufDecryptor<")?;
         <C as AlgorithmName>::write_alg_name(f)?;
         f.write_str(">")
     }
 }
 
-impl<C,const BITSIZE:u8> fmt::Debug for CfbBitsBufEncryptor<C,BITSIZE>
+impl<C,const BITSIZE:u8> fmt::Debug for CfbBitsBufDecryptor<C,BITSIZE>
 where
     C: BlockEncryptMut + BlockCipher + AlgorithmName,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("cfb::CfbBitsBufEncryptor<")?;
+        f.write_str("cfb::CfbBitsBufDecryptor<")?;
         <C as AlgorithmName>::write_alg_name(f)?;
         f.write_str("> { ... }")
     }
@@ -220,7 +216,7 @@ where
 
 #[cfg(feature = "zeroize")]
 #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
-impl<C: BlockEncryptMut + BlockCipher,const BITSIZE:u8> Drop for CfbBitsBufEncryptor<C,BITSIZE> {
+impl<C: BlockEncryptMut + BlockCipher,const BITSIZE:u8> Drop for CfbBitsBufDecryptor<C,BITSIZE> {
     fn drop(&mut self) {
         self.iv.zeroize();
     }
@@ -228,4 +224,4 @@ impl<C: BlockEncryptMut + BlockCipher,const BITSIZE:u8> Drop for CfbBitsBufEncry
 
 #[cfg(feature = "zeroize")]
 #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
-impl<C: BlockEncryptMut + BlockCipher + ZeroizeOnDrop,const BITSIZE:u8> ZeroizeOnDrop for CfbBitsBufEncryptor<C,BITSIZE> {}
+impl<C: BlockEncryptMut + BlockCipher + ZeroizeOnDrop,const BITSIZE:u8> ZeroizeOnDrop for CfbBitsBufDecryptor<C,BITSIZE> {}
