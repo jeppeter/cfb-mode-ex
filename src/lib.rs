@@ -67,5 +67,5 @@ mod decrypt;
 mod encrypt;
 
 pub use cipher;
-pub use decrypt::{BufDecryptor, Decryptor};
+pub use decrypt::{BufDecryptor, Decryptor,CfbBitsBufDecryptor};
 pub use encrypt::{BufEncryptor, Encryptor,CfbBitsBufEncryptor};

@@ -1,3 +1,55 @@
+
+fn _get_mask_bits(inbytes :&[u8],bits :usize, offsetbits :usize) -> Vec<u8> {
+    let mut idx :usize=0;
+    let mut sbidx :usize;
+    let mut scuridx :usize;
+    let mut srem :usize;
+    let mut dbix :usize;
+    let mut drem :usize;
+    let mut retv :Vec<u8> = vec![0;(bits + 7) >> 3];
+
+    while idx < bits {
+        scuridx = offsetbits + idx;
+        sbidx = scuridx >> 3 ;
+        srem = scuridx % 8;
+        dbix = idx >> 3;
+        drem = idx % 8;
+        if (inbytes[sbidx] & ( 1 << (7 - srem))) != 0 {
+            retv[dbix] |= 1 << (7 - drem);
+        }
+        idx += 1;
+    }
+    return retv;
+}
+
+fn _mask_new_bits(data :&mut [u8],bits :usize, offsetbits :usize, maskbytes :&[u8]) {
+    let mut idx :usize=0;
+    let mut dbidx :usize;
+    let mut dcuridx :usize;
+    let mut drem :usize;
+    let mut sbix :usize;
+    let mut srem :usize;
+
+    while idx < bits {
+        dcuridx = offsetbits + idx;
+        dbidx = dcuridx  >> 3;
+        drem = dcuridx % 8;
+        sbix = idx >> 3;
+        srem = idx % 8;
+        if (maskbytes[sbix] & ( 1 << (7 - srem))) != 0 {
+            cfb_ex_log_trace!("[{}]bit set [{}] shift {} [0x{:x}] => [0x{:x}]",idx, dbidx,drem, data[dbidx],data[dbidx] | (1 << (7 - drem)));
+            data[dbidx] |= 1 << (7 - drem);
+        } else {
+            cfb_ex_log_trace!("[{}]bit clear [{}] shift {} [0x{:x}] => [0x{:x}]",idx, dbidx, drem, data[dbidx], data[dbidx] & (!(1 << (7 - drem))));
+            data[dbidx] &= !(1 << (7 - drem));
+        }
+        idx += 1;
+    }
+    return;
+
+}
+
+
 /// to make cfb1
 #[derive(Clone)]
 pub struct CfbBitsBufEncryptor<C,const BITSIZE:u8=8>
@@ -49,8 +101,8 @@ where
     }
 
     fn _encrypt_bits_shift(&mut  self, data :&mut [u8],ivec :&mut [u8],nbits :usize) {
-        let mut c:[u8;1] = [0;1];
-        let mut d:[u8;1] = [0;1];
+        let mut c :Vec<u8>;
+        let mut d  = vec![0;(nbits + 7) >> 3];
         let mut n :usize;
         let mask :u8;
         let topbits :u8;
@@ -65,11 +117,7 @@ where
 
         n = 0;
         while n < totalbits {
-            if (inbytes[n >> 3] & (topbits << ( 7 - n%8))) != 0 {
-                c[0] = mask;
-            } else {
-                c[0] = 0;
-            }
+            c = _get_mask_bits(&inbytes,nbits,n);
             cfb_ex_log_trace!("tmpin 0x{:x}",c[0]);
             self._encrypt_bitsize(&c,&mut d,ivec,nbits);
             cfb_ex_log_trace!("out[{}/8] = 0x{:x} d[0] = 0x{:x}",n,data[n>>3],d[0]);
@@ -77,7 +125,8 @@ where
             tmp2 = ( d[0] & mask ) >> (n % 8);
             cfb_ex_log_trace!("tmp1 0x{:x} = out[{} / 8] [0x{:x}] & ~(1 << (unsigned int)(7 - {} % 8)))",tmp1,n,data[n >> 3],n);
             cfb_ex_log_trace!("tmp2 0x{:x} = (d[0] [0x{:x}] & 0x80) >> (n {} % 8)",tmp2,d[0],n);
-            data[n >> 3] =  tmp1 | tmp2 ;
+            _mask_new_bits(data,nbits,n,&d);
+            //data[n >> 3] =  tmp1 | tmp2 ;
             cfb_ex_log_trace!("out[{} / 8] = 0x{:x}", n, data[n >> 3]);
             n += nbits;
         }
