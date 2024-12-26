@@ -50,8 +50,8 @@ impl Aes128CfbAlgo {
     }
 }
 
-pub type Aes128CfbEnc = cfb_mode_ex::CfbBitsBufEncryptor<aes::Aes128,8>;
-pub type Aes128CfbDec = cfb_mode_ex::CfbBitsBufDecryptor<aes::Aes128,8>;
+pub type Aes128CfbEnc = cfb_mode_ex::CfbBitsBufEncryptor<aes::Aes128,128>;
+pub type Aes128CfbDec = cfb_mode_ex::CfbBitsBufDecryptor<aes::Aes128,128>;
 
 
 impl Asn1EncryptOp for Aes128CfbAlgo {
