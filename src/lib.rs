@@ -63,6 +63,7 @@
 
 mod errors;
 mod logger;
+mod bits;
 mod decrypt;
 mod encrypt;
 

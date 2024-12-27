@@ -33,25 +33,44 @@ use aes;
 use aes::cipher::KeyIvInit;
 //use aes::cipher::AsyncStreamCipher;
 
+pub type Aes128CfbEnc = cfb_mode_ex::CfbBitsBufEncryptor<aes::Aes128,128>;
+pub type Aes128CfbDec = cfb_mode_ex::CfbBitsBufDecryptor<aes::Aes128,128>;
+
 
 #[derive(Clone)]
 pub struct Aes128CfbAlgo {
     iv :Vec<u8>,
     key :Vec<u8>,
+    innerenc :Aes128CfbEnc,
+    innerdec :Aes128CfbDec,
+    encinit :bool,
+    decinit :bool,
 }
 
 impl Aes128CfbAlgo {
     pub fn new(iv :&[u8],key :&[u8]) -> Result<Self,Box<dyn Error>> {
+        let mut niv :Vec<u8> = iv.to_vec().clone();
+        let mut nkey :Vec<u8> = key.to_vec().clone();
+        if niv.len() >= 16 {
+            niv = niv[0..16].to_vec();
+        }
+        if nkey.len() >= 16 {
+            nkey = nkey[0..16].to_vec();
+        }
+        let ckey :&[u8] = &nkey;
+        let civ :&[u8] = &niv;
         let retv = Self {
-            iv : iv.to_vec(),
-            key :key.to_vec(),
+            iv : niv.clone(),
+            key :nkey.clone(),
+            innerenc : Aes128CfbEnc::new(ckey.into(),civ.into()),
+            innerdec : Aes128CfbDec::new(ckey.into(),civ.into()),
+            encinit : false,
+            decinit : false,
         };
         Ok(retv)
     }
 }
 
-pub type Aes128CfbEnc = cfb_mode_ex::CfbBitsBufEncryptor<aes::Aes128,128>;
-pub type Aes128CfbDec = cfb_mode_ex::CfbBitsBufDecryptor<aes::Aes128,128>;
 
 
 impl Asn1EncryptOp for Aes128CfbAlgo {
@@ -64,16 +83,25 @@ impl Asn1EncryptOp for Aes128CfbAlgo {
         if self.key.len() >= 16 {
             self.key = self.key[0..16].to_vec();
         }
+        let ckey :&[u8] = &self.key;
+        let civ :&[u8] = &self.iv;
+        self.decinit = false;
+        self.innerenc = Aes128CfbEnc::new(ckey.into(),civ.into());
+        self.encinit = true;
         Ok(())
     }
     fn encrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
         let mut retdata :Vec<u8> = data.to_vec();
-        let ckey :&[u8] = &self.key;
-        let civ :&[u8] = &self.iv;
-        Aes128CfbEnc::new(ckey.into(),civ.into()).encrypt(&mut retdata);
+        if !self.encinit {
+            extargs_new_error!{TstAesError,"not init encrypt"}
+        }
+        self.innerenc.encrypt(&mut retdata);
         Ok(retdata)
     }
     fn encrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
+        if !self.encinit {
+            extargs_new_error!{TstAesError,"not init encrypt"}
+        }
         Ok(vec![])
     }
 }
@@ -88,16 +116,25 @@ impl Asn1DecryptOp for Aes128CfbAlgo {
         if self.key.len() >= 16 {
             self.key = self.key[0..16].to_vec();
         }
+        let ckey :&[u8] = &self.key;
+        let civ :&[u8] = &self.iv;
+        self.decinit = true;
+        self.innerdec = Aes128CfbDec::new(ckey.into(),civ.into());
+        self.encinit = false;
         Ok(())
     }
     fn decrypt_update(&mut self, encdata :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
         let mut retdata :Vec<u8> = encdata.to_vec();
-        let ckey :&[u8] = &self.key;
-        let civ :&[u8] = &self.iv;
-        Aes128CfbDec::new(ckey.into(),civ.into()).decrypt(&mut retdata);
+        if !self.decinit {
+            extargs_new_error!{TstAesError,"not init decrypt"}
+        }
+        self.innerdec.decrypt(&mut retdata);
         Ok(retdata)
     }
     fn decrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
+        if !self.decinit {
+            extargs_new_error!{TstAesError,"not init decrypt"}
+        }
         Ok(vec![])
     }
 }

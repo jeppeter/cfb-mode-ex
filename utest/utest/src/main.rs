@@ -29,7 +29,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use extutils::logtrans::{prepare_log};
 
-mod logtrans;
+//mod logtrans;
 mod impls;
 mod tstaes;
 

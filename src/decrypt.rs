@@ -10,6 +10,7 @@ use core::fmt;
 #[allow(unused_imports)]
 use crate::logger::*;
 use crate::*;
+use crate::bits::*;
 
 #[cfg(feature = "zeroize")]
 use cipher::zeroize::{Zeroize, ZeroizeOnDrop};
